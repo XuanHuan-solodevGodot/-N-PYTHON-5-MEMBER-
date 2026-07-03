@@ -5,13 +5,8 @@ from config import (
     COLOR_BG, COLOR_HEADER, COLOR_HEADER_TEXT, COLOR_CARD, COLOR_MUTED,
     FONT_TITLE, FONT_SUBTITLE, FONT_LABEL_BOLD, CLASS_COLORS, COLOR_ACCENT, FIELDS,
 )
-from ui_widgets import style_treeview
-from data_service import load_wine_data, load_prediction_history, save_prediction
-from model_service import load_model, predict_wine_class
-from dashboard_tab import build_dashboard_tab
-from data_tab import build_data_tab
-from predict_tab import build_predict_tab
-from history_tab import build_history_tab
+from services import load_wine_data, load_prediction_history, save_prediction, load_model, predict_wine_class
+from ui import style_treeview, build_dashboard_tab, build_data_tab, build_predict_tab, build_history_tab
 
 # =====================================
 # LOAD DATA & MODEL
@@ -32,7 +27,6 @@ root.configure(bg=COLOR_BG)
 
 style = ttk.Style()
 style.theme_use("clam")
-
 style.configure("TNotebook", background=COLOR_BG, borderwidth=0)
 style.configure(
     "TNotebook.Tab", background=COLOR_BG, foreground=COLOR_MUTED,
@@ -43,7 +37,6 @@ style.map(
     background=[("selected", COLOR_CARD)],
     foreground=[("selected", COLOR_ACCENT)],
 )
-
 style_treeview()
 
 # =====================================
@@ -71,7 +64,7 @@ if db_error:
     ).pack(side="right", padx=30)
 
 # =====================================
-# NOTEBOOK / TABS
+# TABS
 # =====================================
 
 outer = tk.Frame(root, bg=COLOR_BG)
@@ -96,7 +89,7 @@ history_tree = build_history_tab(tab_history, db_error)
 
 
 # =====================================
-# PREDICT TAB LOGIC (callbacks)
+# PREDICT LOGIC
 # =====================================
 
 def refresh_history():
@@ -109,15 +102,12 @@ def refresh_history():
         return
 
     for i, (_, row) in enumerate(history_df.iterrows()):
-        tag = "odd" if i % 2 else "even"
-        history_tree.insert("", "end", values=list(row), tags=(tag,))
+        history_tree.insert("", "end", values=list(row), tags=("odd" if i % 2 else "even",))
 
 
 def handle_predict():
     if model is None:
-        messagebox.showerror(
-            "Lỗi mô hình", f"Không thể tải model random_forest.pkl:\n{model_error}"
-        )
+        messagebox.showerror("Lỗi mô hình", f"Không thể tải model random_forest.pkl:\n{model_error}")
         return
 
     try:
@@ -125,14 +115,13 @@ def handle_predict():
         for i, entry in enumerate(predict_widgets["entries"]):
             raw = entry.get().strip()
             if raw == "":
-                raise ValueError(f"Vui lòng nhập giá trị cho '{FIELDS[i][0]}'")
+                raise ValueError(f"Vui lòng nhập giá trị cho '{FIELDS[i]}'")
             values.append(float(raw))
 
         prediction, probability = predict_wine_class(model, values)
 
         predict_widgets["result_var"].set(
-            f"Loại rượu dự đoán:  Class {prediction}\n"
-            f"Độ tin cậy:  {probability:.2f}%"
+            f"Loại rượu dự đoán:  Class {prediction}\nĐộ tin cậy:  {probability:.2f}%"
         )
         color = CLASS_COLORS.get(int(prediction), COLOR_ACCENT)
         predict_widgets["result_frame"].config(highlightbackground=color)

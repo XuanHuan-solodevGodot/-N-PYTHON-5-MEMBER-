@@ -1,15 +1,24 @@
+"""
+Toàn bộ phần "backend" của app: đọc/ghi MySQL và load/chạy model.
+Không đụng gì tới database.py gốc của bạn - chỉ import get_connection từ đó.
+"""
+
+import numpy as np
+import joblib
 import pandas as pd
 
 from database import get_connection
 from config import FEATURE_COLUMNS
 
 
+# ---------- Wine data ----------
+
 def empty_wine_df():
     return pd.DataFrame(columns=["id", "class_label"] + FEATURE_COLUMNS + ["created_at"])
 
 
 def load_wine_data():
-    """Loads the wine_data table. Returns (dataframe, error_message_or_None)."""
+    """Returns (dataframe, error_message_or_None)."""
     try:
         conn = get_connection()
         df = pd.read_sql("SELECT * FROM wine_data", conn)
@@ -19,8 +28,10 @@ def load_wine_data():
         return empty_wine_df(), str(e)
 
 
+# ---------- Prediction history ----------
+
 def load_prediction_history():
-    """Loads prediction_history, newest first. Returns (dataframe, error_message_or_None)."""
+    """Returns (dataframe, error_message_or_None)."""
     try:
         conn = get_connection()
         query = "SELECT * FROM prediction_history ORDER BY prediction_id DESC"
@@ -32,7 +43,6 @@ def load_prediction_history():
 
 
 def save_prediction(values, prediction, probability):
-    """Inserts one prediction row into prediction_history."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -48,7 +58,23 @@ def save_prediction(values, prediction, probability):
 
     cursor.execute(sql, (*values, int(prediction), float(probability)))
     conn.commit()
-
     cursor.close()
     conn.close()
-    
+
+
+# ---------- Model ----------
+
+def load_model(path="random_forest.pkl"):
+    """Returns (model, error_message_or_None)."""
+    try:
+        return joblib.load(path), None
+    except Exception as e:
+        return None, str(e)
+
+
+def predict_wine_class(model, values):
+    """Returns (predicted_class, confidence_percent)."""
+    data = np.array([values])
+    prediction = model.predict(data)[0]
+    probability = max(model.predict_proba(data)[0]) * 100
+    return prediction, probability
